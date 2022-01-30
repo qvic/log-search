@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn test_find_line_with_position() {
-        let string = String::from("1 - Hello\n2 - World\n3 - And goodbye\n\n");
+        let string = String::from("1 - Hello\n2 - World\n3 - Її\n\n");
         assert_eq!(find_line_by_position(&string, 0), Some(String::from("1 - Hello")));
         assert_eq!(find_line_by_position(&string, 5), Some(String::from("1 - Hello")));
         assert_eq!(find_line_by_position(&string, 9), Some(String::from("1 - Hello")));
@@ -116,11 +116,11 @@ mod tests {
         assert_eq!(find_line_by_position(&string, 18), Some(String::from("2 - World")));
         assert_eq!(find_line_by_position(&string, 19), Some(String::from("2 - World")));
 
-        assert_eq!(find_line_by_position(&string, 20), Some(String::from("3 - And goodbye")));
-        assert_eq!(find_line_by_position(&string, 30), Some(String::from("3 - And goodbye")));
-        assert_eq!(find_line_by_position(&string, 35), Some(String::from("3 - And goodbye")));
+        // ї is two bytes in utf-8
+        assert_eq!(find_line_by_position(&string, 20), Some(String::from("3 - Її")));
+        assert_eq!(find_line_by_position(&string, 21), Some(String::from("3 - Її")));
 
-        assert_eq!(find_line_by_position(&string, 36), None);
+        assert_eq!(find_line_by_position(&string, 29), None);
     }
 
     #[test]
