@@ -1,8 +1,6 @@
 use std::fs::File;
 use std::time::Instant;
 
-use chrono::NaiveDateTime;
-
 use crate::lib::{binary_search_line, compare_by_datetime};
 
 mod lib;
@@ -10,6 +8,8 @@ mod lib;
 fn main() -> std::io::Result<()> {
     const SEARCH_TARGET: &'static str = "2000-01-02 09:54:49";
     const FILE_PATH: &'static str = "log.txt";
+    let date_format = "%Y-%m-%d %H:%M:%S";
+    let delimiter = " - ";
 
     let file = File::open(FILE_PATH)?;
     let file_size = file.metadata().unwrap().len();
@@ -17,11 +17,8 @@ fn main() -> std::io::Result<()> {
     println!("File size: {}", file_size);
 
     let start_time = Instant::now();
-    let result = binary_search_line(&file, file_size as usize,
-                                    |line| compare_by_datetime(line,
-                                                               NaiveDateTime::parse_from_str(SEARCH_TARGET,
-                                                                                             "%Y-%m-%d %H:%M:%S")
-                                                                   .unwrap()))
+    let result = binary_search_line(&file, file_size,
+                                    |line| compare_by_datetime(line, delimiter, SEARCH_TARGET, date_format))
         .unwrap();
     let elapsed_time = start_time.elapsed().as_millis();
 

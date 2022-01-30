@@ -6,20 +6,20 @@ use std::os::unix::fs::FileExt;
 use chrono::NaiveDateTime;
 
 pub trait RandomAccess {
-    fn read_at_position(&self, i: usize) -> Option<char>;
+    fn read_at_position(&self, i: u64) -> Option<char>;
 }
 
 impl RandomAccess for String {
-    fn read_at_position(&self, i: usize) -> Option<char> {
-        self.chars().collect::<Vec<char>>().get(i).copied()
+    fn read_at_position(&self, i: u64) -> Option<char> {
+        self.chars().collect::<Vec<char>>().get(i as usize).copied()
     }
 }
 
 impl RandomAccess for File {
-    fn read_at_position(&self, i: usize) -> Option<char> {
+    fn read_at_position(&self, i: u64) -> Option<char> {
         let mut buf = [0u8; 4];
-        let n = self.read_at(&mut buf, i as u64).unwrap();
-        if n == 4 {
+        let n = self.read_at(&mut buf, i).unwrap();
+        if n > 0 {
             std::str::from_utf8(&buf).unwrap().chars().next()
         } else {
             None
@@ -27,8 +27,8 @@ impl RandomAccess for File {
     }
 }
 
-pub fn binary_search_line<T: RandomAccess>(source: &T, char_count: usize,
-                                       check_line: fn(&str) -> Result<Ordering, String>) -> Result<Option<String>, String> {
+pub fn binary_search_line<T, F>(source: &T, char_count: u64, check_line: F) -> Result<Option<String>, String>
+    where T: RandomAccess, F: Fn(&str) -> Result<Ordering, String> {
     let mut size = char_count;
     if size == 0 {
         return Ok(None);
@@ -51,7 +51,7 @@ pub fn binary_search_line<T: RandomAccess>(source: &T, char_count: usize,
     Ok(None)
 }
 
-fn find_line_by_position<T: RandomAccess>(source: &T, position: usize) -> Option<String> {
+fn find_line_by_position<T: RandomAccess>(source: &T, position: u64) -> Option<String> {
     let mut buffer: VecDeque<char> = VecDeque::new();
     let mut i = position;
     loop {
@@ -85,17 +85,21 @@ fn find_line_by_position<T: RandomAccess>(source: &T, position: usize) -> Option
     }
 }
 
-pub fn compare_by_datetime(line: &str, date: NaiveDateTime) -> Result<Ordering, String> {
-    let delimiter = " - ";
-    let date_format = "%Y-%m-%d %H:%M:%S";
-    let date_prefix = line.split_once(delimiter).ok_or(format!("Found badly formatted line: {}", line))?.0;
-    let parsed_date = NaiveDateTime::parse_from_str(date_prefix, date_format).map_err(|e| e.to_string())?;
-    Ok(parsed_date.cmp(&date))
+fn parse_date(date: &str, date_format: &str) -> Result<NaiveDateTime, String> {
+    NaiveDateTime::parse_from_str(date, date_format).map_err(|e| e.to_string())
+}
+
+pub fn compare_by_datetime(line: &str, delimiter: &str,
+                           target_date_str: &str, date_format: &str) -> Result<Ordering, String> {
+    let date = line.split_once(delimiter).ok_or(format!("Found badly formatted line: {}", line))?.0;
+    let parsed_date = parse_date(date, date_format)?;
+    let target_date = parse_date(target_date_str, date_format)?;
+    Ok(parsed_date.cmp(&target_date))
 }
 
 #[cfg(test)]
 mod tests {
-    use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+    use chrono::NaiveDate;
 
     use super::*;
 
@@ -120,9 +124,11 @@ mod tests {
     #[test]
     fn test_binary_search_line() {
         let string = String::from("1 - Lorem\n2 - Ipsum\n3 - Dolor sit amet\n4 - Consectetur adipiscing elit\n5 - Excepteur sint");
-        let length = string.len();
-        println!("{:?}", binary_search_line(&string, length,
-                                            |x| compare_by_bullet_number(x, 4)));
+        let length = string.len() as u64;
+
+        let result = binary_search_line(&string, length,
+                                        |x| compare_by_bullet_number(x, 4));
+        assert_eq!(result, Ok(Some(String::from("4 - Consectetur adipiscing elit"))));
     }
 
     fn compare_by_bullet_number(line: &str, n: usize) -> Result<Ordering, String> {
@@ -135,9 +141,10 @@ mod tests {
     #[test]
     fn test_binary_search_line_date() {
         let string = String::from("2020-01-01 Lorem\n2020-01-05 Ipsum\n2020-01-10 Dolor sit amet\n2020-01-11 Excepteur sint");
-        let length = string.len();
-        println!("{:?}", binary_search_line(&string, length,
-                                            |x| compare_by_date(x, NaiveDate::from_ymd(2020, 1, 5))));
+        let length = string.len() as u64;
+        let result = binary_search_line(&string, length,
+                                        |x| compare_by_date(x, NaiveDate::from_ymd(2020, 1, 5)));
+        assert_eq!(result, Ok(Some(String::from("2020-01-05 Ipsum"))));
     }
 
     fn compare_by_date(line: &str, date: NaiveDate) -> Result<Ordering, String> {
@@ -150,11 +157,12 @@ mod tests {
 
     #[test]
     fn test_binary_search_line_datetime() {
+        let date_format = "%Y-%m-%d %H:%M:%S";
+        let delimiter = " - ";
         let string = String::from("2020-01-01 14:27:28 - Lorem\n2020-01-01 18:59:15 - Ipsum\n2020-01-02 01:17:24 - Dolor sit amet");
-        let length = string.len();
-        println!("{:?}", binary_search_line(&string, length,
-                                            |x| compare_by_datetime(x, NaiveDateTime::new(
-                                                NaiveDate::from_ymd(2020, 1, 1),
-                                                NaiveTime::from_hms(14, 27, 28)))));
+        let length = string.len() as u64;
+        let result = binary_search_line(&string, length,
+                                        |line| compare_by_datetime(line, delimiter, "2020-01-01 14:27:28", date_format));
+        assert_eq!(result, Ok(Some(String::from("2020-01-01 14:27:28 - Lorem"))));
     }
 }
