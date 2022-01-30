@@ -7,15 +7,15 @@ use crate::lib::{binary_search_line, compare_by_datetime};
 mod lib;
 
 fn main() -> std::io::Result<()> {
-    let file_path = std::env::args().nth(1).expect("no log file path given");
-    let date_format = std::env::args().nth(2).expect("no date format given (e.g. '%Y-%m-%d %H:%M:%S')");
-    let date_delimiter = std::env::args().nth(3).expect("no date delimiter given");
-    let target_date = std::env::args().nth(4).expect("no target date given");
+    let file_path = env::args().nth(1).expect("No log file path given");
+    let date_format = env::args().nth(2).expect("No date format given (e.g. '%Y-%m-%d %H:%M:%S')");
+    let date_delimiter = env::args().nth(3).expect("No date delimiter given");
+    let target_date = env::args().nth(4).expect("No target date given");
 
-    println!("File path: {}", file_path);
-    println!("Date format: {}", date_format);
-    println!("Date delimiter: {}", date_delimiter);
-    println!("Target date: {}", target_date);
+    println!("File path: '{}'", file_path);
+    println!("Date format: '{}'", date_format);
+    println!("Date delimiter: '{}'", date_delimiter);
+    println!("Target date: '{}'", target_date);
 
     let file = File::open(file_path)?;
     let file_size = file.metadata()?.len();
@@ -28,6 +28,7 @@ fn main() -> std::io::Result<()> {
         .unwrap();
     let elapsed_time = start_time.elapsed().as_millis();
 
+    println!();
     println!("Execution took {} ms", elapsed_time);
     match result {
         Some(line) => println!("Found match '{}'", line),
