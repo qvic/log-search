@@ -5,22 +5,24 @@ use std::os::unix::fs::FileExt;
 
 use chrono::NaiveDateTime;
 
+const NEWLINE: u8 = 0x0A;
+
 pub trait RandomAccess {
-    fn read_at_position(&self, i: u64) -> Option<char>;
+    fn read_at_position(&self, i: u64) -> Option<u8>;
 }
 
 impl RandomAccess for String {
-    fn read_at_position(&self, i: u64) -> Option<char> {
-        self.chars().collect::<Vec<char>>().get(i as usize).copied()
+    fn read_at_position(&self, i: u64) -> Option<u8> {
+        self.as_bytes().get(i as usize).copied()
     }
 }
 
 impl RandomAccess for File {
-    fn read_at_position(&self, i: u64) -> Option<char> {
-        let mut buf = [0u8; 4];
+    fn read_at_position(&self, i: u64) -> Option<u8> {
+        let mut buf = [0u8; 1];
         let n = self.read_at(&mut buf, i).unwrap();
         if n > 0 {
-            std::str::from_utf8(&buf).unwrap().chars().next()
+            buf.first().copied()
         } else {
             None
         }
@@ -52,11 +54,11 @@ pub fn binary_search_line<T, F>(source: &T, char_count: u64, check_line: F) -> R
 }
 
 fn find_line_by_position<T: RandomAccess>(source: &T, position: u64) -> Option<String> {
-    let mut buffer: VecDeque<char> = VecDeque::new();
+    let mut buffer: VecDeque<u8> = VecDeque::new();
     let mut i = position;
     loop {
         match source.read_at_position(i) {
-            Some('\n') => break,
+            Some(NEWLINE) => break,
             Some(c) => buffer.push_back(c),
             None => break
         }
@@ -67,7 +69,7 @@ fn find_line_by_position<T: RandomAccess>(source: &T, position: u64) -> Option<S
         i = position - 1;
         loop {
             match source.read_at_position(i) {
-                Some('\n') => break,
+                Some(NEWLINE) => break,
                 Some(c) => buffer.push_front(c),
                 None => break
             }
@@ -81,7 +83,7 @@ fn find_line_by_position<T: RandomAccess>(source: &T, position: u64) -> Option<S
     if buffer.is_empty() {
         None
     } else {
-        Some(buffer.into_iter().collect())
+        Some(String::from_utf8(buffer.into_iter().collect()).unwrap())
     }
 }
 

@@ -1,3 +1,4 @@
+use std::env;
 use std::fs::File;
 use std::time::Instant;
 
@@ -6,7 +7,7 @@ use crate::lib::{binary_search_line, compare_by_datetime};
 mod lib;
 
 fn main() -> std::io::Result<()> {
-    const SEARCH_TARGET: &'static str = "2000-01-02 09:54:49";
+    const SEARCH_TARGET: &'static str = "2000-01-02 15:46:40";
     const FILE_PATH: &'static str = "log.txt";
     let date_format = "%Y-%m-%d %H:%M:%S";
     let delimiter = " - ";
@@ -24,7 +25,7 @@ fn main() -> std::io::Result<()> {
 
     println!("Execution took {} ms", elapsed_time);
     match result {
-        Some(line) => println!("Found match '{}' for pattern '{}'", line, SEARCH_TARGET),
+        Some(line) => println!("Found match '{}'", line),
         None => println!("Match not found for pattern '{}'", SEARCH_TARGET)
     };
 
